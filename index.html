@@ -305,6 +305,13 @@ header.top select#project { max-width:min(340px, 32vw); text-overflow:ellipsis; 
 header.top #state { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:300px; }
 #presentExit { display:none; } body.present #presentExit { display:inline-flex; }
 .home-only { display:none; } body.home .home-only { display:inline-flex; } body.signedout .home-only { display:none !important; }
+/* قبل تسجيل الدخول لا يظهر سوى بطاقة الدخول: لا لوحات ولا نوافذ ولا أزرار إنشاء */
+body.signedout main > :not(#connect), body.signedout dialog, body.signedout #reportView { display:none !important; }
+.banner { margin:0; padding:10px 14px; border-radius:12px; border:1px solid var(--line); background:var(--surface2); color:var(--fg); font-size:.9rem; line-height:1.8; }
+.banner.bad { background:var(--accent-soft); border-color:var(--accent); }
+.banner.warn { background:var(--warn-soft); border-color:var(--warn); }
+.banner bdi { font-family:var(--mono, monospace); font-size:.82em; opacity:.8; }
+main > .banner { margin:12px 0; }
 .menu { position:relative; }
 .menu-pop { position:absolute; inset-inline-end:0; top:calc(100% + 8px); min-width:220px; background:var(--surface); color:var(--fg); border:1px solid var(--line); border-radius:14px; padding:6px; box-shadow:var(--shadow-lg); z-index:20; display:grid; }
 .menu-pop[hidden] { display:none; }
@@ -477,7 +484,7 @@ header.top .brand b { padding-inline-start:10px; border-inline-start:1px solid r
 @media (max-width:520px) { .brand .klogo { height:22px; } header.top .brand b { font-size:.95rem; } }
 </style>
 </head>
-<body>
+<body class="signedout">
 <header class="top">
   <div class="wrap">
     <a class="brand" id="homeLink" href="#" title="كل المشاريع"><img class="klogo" src="https://khateera.com/wp-content/uploads/logo_website-960x229.png" alt="خطيرة"><b>تعليقات جمهور خطيرة</b></a>
@@ -532,10 +539,13 @@ header.top .brand b { padding-inline-start:10px; border-inline-start:1px solid r
     <div class="login">
       <h2>تسجيل الدخول</h2>
       <p class="lead" style="margin:0">يُحفظ مفتاح الوصول في متصفحكم فقط، وتستخدمه الواجهة لقراءة الإعدادات والنتائج من مستودع خطيرة.</p>
+      <p class="banner bad" id="loginErr" role="alert" hidden></p>
       <details class="how"><summary>كيف أحصل على مفتاح الوصول؟</summary><ol>
-        <li>افتح <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub ← Fine-grained token</a>.</li>
+        <li>ادخل إلى GitHub <b>بحساب مالك المستودع نفسه</b> (الاسم الذي يسبق الشرطة المائلة في خانة المستودع، مثل <span class="num">Khateera</span>)، ثم افتح <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub ← Fine-grained token</a>.</li>
+        <li>Resource owner: <b>حساب مالك المستودع نفسه</b>. المفتاح من نوع Fine-grained يعمل فقط على مستودعات يملكها صاحب المفتاح، فمفتاح يُنشأ من حساب آخر يظهر له المستودع الخاص كأنه غير موجود (404).</li>
         <li>Repository access: <b>Only select repositories</b> ← <span class="num">khateera-audience-comments</span>.</li>
-        <li>Permissions: <b>Contents</b> = Read and write، <b>Actions</b> = Read and write، <b>Secrets</b> = Read and write (لحفظ مفاتيح Gemini وApify لكل مشروع).</li>
+        <li>Permissions: <b>Contents</b> = Read and write، <b>Actions</b> = Read and write، <b>Secrets</b> = Read and write (لحفظ مفاتيح Gemini وApify لكل مشروع). أما <b>Metadata</b> فتُضاف تلقائياً.</li>
+        <li>انسخ المفتاح كاملاً لحظة ظهوره (يبدأ بـ <span class="num">github_pat_</span>) فلا يُعرض مرة أخرى.</li>
       </ol></details>
       <div class="field"><label for="repo">المستودع</label><input type="text" id="repo" dir="ltr" value="" placeholder="اسم-الحساب/khateera-audience-comments"></div>
       <div class="field"><label for="token">مفتاح الوصول</label><input type="password" id="token" dir="ltr" autocomplete="off" placeholder="github_pat_…"></div>
@@ -543,6 +553,7 @@ header.top .brand b { padding-inline-start:10px; border-inline-start:1px solid r
     </div>
   </section>
 
+  <p class="banner warn" id="permBanner" role="alert" hidden></p>
   <section id="home" hidden></section>
   <section class="progress" id="progressBox" hidden aria-live="polite"></section>
   <section class="panel" id="p-flow" hidden></section>
@@ -561,6 +572,7 @@ header.top .brand b { padding-inline-start:10px; border-inline-start:1px solid r
 <dialog id="newDlg" class="wide">
   <form method="dialog" style="display:grid;gap:14px">
     <h2>مشروع رصد جديد</h2>
+    <p class="banner bad" id="newErr" role="alert" hidden></p>
     <div class="field" id="newTypeF"><label>نوع المشروع</label><div class="seg" role="radiogroup" id="newType">
       <label><input type="radio" name="ntype" value="media" checked><span><b>رصد إعلامي</b><small>أخبار وسوشيال بكلمات مفتاحية</small></span></label>
       <label><input type="radio" name="ntype" value="ig"><span><b>تعليقات حسابات خطيرة</b><small>انطباعات جمهور خطيرة على محتواها في يوتيوب وإنستجرام وفيسبوك وغيرها — بمفاتيح خطيرة نفسها</small></span></label></div></div>
@@ -657,7 +669,7 @@ const store = { get: k => { try { return localStorage.getItem("khateera-comments
                 set: (k, v) => { try { localStorage.setItem("khateera-comments:" + k, v); } catch {} } };
 const fmt = n => (n || 0).toLocaleString("en-US");
 const pct = x => Math.round((x || 0) * 100) + "%";
-function toast(msg, ms = 3200) { const t = el("div", { class: "toast", role: "status" }, msg); document.body.append(t); setTimeout(() => t.remove(), ms); }
+function toast(msg, ms = 3200) { const t = el("div", { class: "toast", role: "status" }, msg); document.body.append(t); setTimeout(() => t.remove(), ms); return t; }
 
 // ── GitHub API ─────────────────────────────────────────────
 const S = { repo: store.get("repo") || "", token: store.get("token") || "", project: store.get("project") || "",
@@ -678,7 +690,8 @@ const projectSecret = (base, slug) => `${base}__${secretSuffix(slug)}`;
 let _crypto;
 async function sealLibs() {
   if (!_crypto) _crypto = Promise.all([import("https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/+esm"), import("https://cdn.jsdelivr.net/npm/blakejs@1.2.1/+esm")])
-    .then(([n, b]) => ({ nacl: n.default || n, blake2b: (b.default || b).blake2b || b.blake2b }));
+    .then(([n, b]) => ({ nacl: n.default || n, blake2b: (b.default || b).blake2b || b.blake2b }))
+    .catch(() => { _crypto = null; throw new Error("تعذّر تحميل مكتبة التشفير من cdn.jsdelivr.net — تحقق من الاتصال أو من حاجب الإعلانات ثم أعد المحاولة"); });
   return _crypto;
 }
 async function setSecret(name, value) {
@@ -703,21 +716,66 @@ const b64d = s => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\n/g,
 async function readJSON(path, fallback) { const t = await gh(`/contents/${encodeURI(path)}`, { raw: true, allow404: true }); return t == null ? fallback : JSON.parse(t); }
 
 // ── تحميل ───────────────────────────────────────────────────
+let pollTimer = null, connecting = false;
+const errCode = e => (String((e && e.message) || e).match(/^\d{3}/) || [""])[0];
+function explainConnectError(e, repo) {
+  const owner = (repo.split("/")[0] || "").trim() || "المالك";
+  if (e instanceof TypeError) return "تعذّر الوصول إلى GitHub. تأكد من الاتصال بالإنترنت، ومن أن حاجب الإعلانات أو الجدار الناري لا يمنع api.github.com.";
+  switch (errCode(e)) {
+    case "401": return "مفتاح الوصول غير صالح: منتهي الصلاحية أو ملغى أو نُسخ ناقصاً. أنشئ مفتاحاً جديداً والصقه كاملاً (يبدأ بـ github_pat_).";
+    case "404": return `لا يظهر المستودع «${repo}» لهذا المفتاح. إما أن اسم المستودع مكتوب خطأ، أو أن المفتاح لا يملك صلاحية على المستودع الخاص. المفتاح من نوع Fine-grained يعمل فقط على مستودعات يملكها صاحب المفتاح، فيجب أن يُنشأ وأنت داخل بحساب «${owner}» نفسه، مع Resource owner = ${owner}، ويشمل المستودع في Repository access.`;
+    case "403": return "المفتاح معروف لكنه ممنوع من قراءة الإعدادات. تأكد أن صلاحية Contents = Read and write، وأن حساب المالك وافق على المفتاح إن طلب ذلك، وأن حد الطلبات لم يُستنفد.";
+    default: return "تعذّر الاتصال بالمستودع.";
+  }
+}
+function showLoginErr(msg, detail, openHelp) {
+  const b = $("#loginErr"); b.hidden = !msg;
+  b.replaceChildren(...(msg ? [msg, detail ? el("bdi", { dir: "ltr" }, " (" + String(detail).slice(0, 160) + ")") : ""] : []));
+  if (msg && openHelp) $("#connect .how").open = true;
+  if (msg) b.scrollIntoView({ block: "nearest" });
+}
+function lockApp(forgetToken) {   // يعيد الصفحة إلى حالة «غير مسجّل»: لا لوحات ولا أزرار ولا نوافذ
+  document.body.classList.add("signedout"); document.body.classList.remove("home");
+  $("#connect").hidden = false; $("#save").disabled = true; $("#run").disabled = true;
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  if (forgetToken) { S.token = ""; store.set("token", ""); }
+  S.projects = []; S.meta = null; S.cfg = null; S.perm = null; $("#permBanner").hidden = true;
+}
+async function probePermissions() {   // قراءة فقط: لا يُكتب شيء أثناء الفحص
+  const ok = p => gh(p).then(() => true, () => false);
+  const [actions, secrets] = await Promise.all([ok(`/actions/workflows/monitor.yml/runs?per_page=1`), ok(`/actions/secrets/public-key`)]);
+  S.perm = { actions, secrets };
+  const miss = []; if (!actions) miss.push("Actions = Read and write (لتشغيل الرصد ومتابعته)"); if (!secrets) miss.push("Secrets = Read and write (لحفظ مفتاح Gemini لكل مشروع)");
+  const b = $("#permBanner"); b.hidden = !miss.length;
+  b.textContent = miss.length ? "هذا المفتاح لا يصل إلى: " + miss.join("، ") + ". عدّل صلاحيات المفتاح في GitHub (Settings ← Developer settings ← Fine-grained tokens) ثم ادخل من جديد." : "";
+}
 async function connect() {
-  S.repo = $("#repo").value.trim(); S.token = $("#token").value.trim() || S.token;
-  if (!S.token) return toast("الصق الـ token أولاً");
+  if (connecting) return;
+  const repo = $("#repo").value.trim() || S.repo, token = $("#token").value.trim() || S.token;
+  const wasIn = !document.body.classList.contains("signedout"), prev = { repo: S.repo, token: S.token };
+  showLoginErr("");
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) { $("#connect").hidden = false; return showLoginErr("اكتب اسم المستودع بصيغة «اسم-الحساب/khateera-audience-comments».", "", true); }
+  if (!token) { $("#connect").hidden = false; return showLoginErr("الصق مفتاح الوصول أولاً."); }
+  connecting = true; $("#connectBtn").disabled = true; $("#connectBtn").textContent = "جارٍ الاتصال…";
+  S.repo = repo; S.token = token;
   try {
     const list = await gh(`/contents/config/projects`);
     S.projects = list.filter(f => f.name.endsWith(".json")).map(f => f.name.slice(0, -5));
-    store.set("repo", S.repo); store.set("token", S.token);
-    $("#connect").hidden = true; $("#save").disabled = false; $("#run").disabled = false; document.body.classList.remove("signedout");
+    await probePermissions();
     await loadMeta(true); fillProjects();
-    await loadProject(S.projects.includes(S.project) ? S.project : S.projects[0]);
-    await pollRuns(); setInterval(pollRuns, 15000);
+    if (S.projects.length) await loadProject(S.projects.includes(S.project) ? S.project : S.projects[0]);
+    // نجح كل شيء: الآن فقط يُحفظ المفتاح وتُفتح الواجهة
+    store.set("repo", S.repo); store.set("token", S.token); $("#token").value = "";
+    document.body.classList.remove("signedout"); $("#connect").hidden = true; $("#save").disabled = false; $("#run").disabled = false;
+    await pollRuns(); if (!pollTimer) pollTimer = setInterval(pollRuns, 15000);
     S.homeLive = S.runs.filter(r => r.status !== "completed" && r.event !== "push").length;
-    showHome(store.get("view") !== "project");
+    showHome(store.get("view") !== "project" || !S.projects.length);
     if (S.present) setPresent(true);
-  } catch (e) { $("#connect").hidden = false; setState("bad", "فشل الاتصال"); toast("تعذّر الاتصال: " + e.message, 6000); }
+  } catch (e) {
+    if (wasIn) { S.repo = prev.repo; S.token = prev.token; $("#connect").hidden = false; } else lockApp(errCode(e) === "401");
+    setState("bad", "فشل الاتصال");
+    showLoginErr(explainConnectError(e, repo), String((e && e.message) || e), true);
+  } finally { connecting = false; $("#connectBtn").disabled = false; $("#connectBtn").textContent = "دخول"; }
 }
 function fillProjects() {
   const sel = $("#project"), meta = S.meta || {};
@@ -1981,6 +2039,9 @@ function importIntoCurrent() {
 // ── معالج المشروع الجديد ────────────────────────────────────
 function openWizard(opts = {}) {
   const dlg = $("#newDlg");
+  const wizErr = msg => { const b = $("#newErr"); b.textContent = msg || ""; b.hidden = !msg; };
+  const retry = msg => { wizErr(msg); dlg.returnValue = ""; dlg.showModal(); };   // يعيد فتح النافذة بكل ما كُتب فيها
+  wizErr(!opts.replace && S.perm && !S.perm.secrets ? "مفتاح الوصول الحالي لا يصل إلى «Secrets»، فلن يُحفظ مفتاح Gemini ولن يُنشأ المشروع. أضف إلى المفتاح صلاحية Secrets = Read and write ثم ادخل من جديد." : "");
   const cur = S.cfg || {}, curSrc = new Set([...(cur.news || []).map(r => r.source || "google"), ...(cur.social || []).map(r => r.platform)]);
   const defaults = opts.replace ? curSrc : new Set(["google", "bing", "X", "Facebook", "Instagram", "TikTok", "YouTube", "LinkedIn"]);
   $("#newSources").replaceChildren(...Object.entries(SRC).map(([k, v]) => el("label", {}, el("input", { type: "checkbox", value: k, checked: defaults.has(k) }),
@@ -2018,7 +2079,7 @@ function openWizard(opts = {}) {
     if (dlg.returnValue === "ok" && ig()) {
       const name = $("#newName").value.trim() || "انطباعات جمهور خطيرة";
       const slug = slugify($("#newSlug").value) || "owned-comments";
-      if (S.projects.includes(slug)) return toast("المعرّف مستخدم — اختر معرّفاً آخر", 5000);
+      if (S.projects.includes(slug)) return retry("المعرّف مستخدم — اختر معرّفاً آخر.");
       const per = $("#newPeriod").value, period = per === "copy" ? {} : monthRange(per === "prev" ? -1 : 0);
       const cfg = structuredClone(IG_TEMPLATE); cfg.name = name;
       const ctxIn = $("#newCtx").value.trim(); if (ctxIn) cfg.context = ctxIn.split(/\n\s*\n/);
@@ -2028,20 +2089,21 @@ function openWizard(opts = {}) {
       cfg.social.forEach(src => { const h = src.platform === "TikTok" ? tt : src.platform === "X" ? xx : "";
         if (h) src.input = src.input.replaceAll("اسم_الحساب", h); src.active = !!h && on.has(src.platform.toLowerCase()); });
       const plats = ["youtube", "instagram", "facebook"].filter(k => on.has(k)).concat(cfg.social.some(x => x.active) ? ["apify"] : []);
-      if (!plats.length) return toast("اختر منصة واحدة على الأقل", 5000);
+      if (!plats.length) return retry("اختر منصة واحدة على الأقل.");
       const keys = { GEMINI_API_KEY: $("#newGemini").value, APIFY_TOKEN: $("#newApify").value };
-      if (!keys.GEMINI_API_KEY.trim()) return toast("أدخل مفتاح Gemini لهذا المشروع", 5000);
-      if (plats.includes("apify") && !keys.APIFY_TOKEN.trim()) return toast("أدخل توكن Apify (مطلوب لـ TikTok وX)", 5000);
+      if (!keys.GEMINI_API_KEY.trim()) return retry("أدخل مفتاح Gemini لهذا المشروع.");
+      if (plats.includes("apify") && !keys.APIFY_TOKEN.trim()) return retry("أدخل توكن Apify (مطلوب لـ TikTok وX).");
       Object.assign(cfg.settings, period, { project_name: name, owned_platforms: plats, ig_api: $("#newIgApi").value,
         yt_channel: $("#newYt").value.trim(), fb_page_id: $("#newFb").value.trim(), report_title: "انطباعات الجمهور — " + name });
-      try { await saveProjectKeys(slug, keys); await createProject(slug, cfg); S.dirty = false; fillProjects(); await loadProject(slug); goTab("flow"); toast("أُنشئ المشروع وحُفظت مفاتيحه ✓ — أكمل «الإعداد الأول»", 5000); }
-      catch (e) { toast("تعذّر الإنشاء: " + e.message, 6000); }
+      const wait = toast("جارٍ إنشاء المشروع وحفظ المفاتيح…", 90000);
+      try { await saveProjectKeys(slug, keys); await createProject(slug, cfg); wait.remove(); S.dirty = false; fillProjects(); await loadProject(slug); goTab("flow"); toast("أُنشئ المشروع وحُفظت مفاتيحه ✓ — أكمل «الإعداد الأول»", 5000); }
+      catch (e) { wait.remove(); retry("تعذّر الإنشاء: " + e.message); }
       return;
     }
     if (dlg.returnValue !== "ok") return;
     const t = $("#newKw").value.trim();
     let built;
-    if (t.startsWith("{")) { try { built = JSON.parse(t); } catch { return toast("ملف JSON غير صالح", 5000); } }
+    if (t.startsWith("{")) { try { built = JSON.parse(t); } catch { return retry("ملف JSON غير صالح."); } }
     else built = t ? buildFromKw(parseKw(t), chosen()) : { news: [], social: [], exclusions: [] };
     if (opts.replace) {
       S.cfg.news = built.news || []; S.cfg.social = built.social || [];
@@ -2052,21 +2114,22 @@ function openWizard(opts = {}) {
     }
     const name = $("#newName").value.trim() || built.name || "مشروع رصد";
     const slug = slugify($("#newSlug").value) || slugify(built.slug || "");
-    if (!slug || S.projects.includes(slug)) return toast("اختر معرّفاً جديداً بحروف إنجليزية", 5000);
+    if (!slug || S.projects.includes(slug)) return retry("اختر معرّفاً جديداً بحروف إنجليزية.");
     const keys = { GEMINI_API_KEY: $("#newGemini").value, APIFY_TOKEN: $("#newApify").value };
-    if (!keys.GEMINI_API_KEY.trim()) return toast("أدخل مفتاح Gemini لهذا المشروع", 5000);
-    if ((built.social || []).some(r => r.active !== false) && !keys.APIFY_TOKEN.trim()) return toast("أدخل توكن Apify (مطلوب لمصادر السوشيال)", 5000);
+    if (!keys.GEMINI_API_KEY.trim()) return retry("أدخل مفتاح Gemini لهذا المشروع.");
+    if ((built.social || []).some(r => r.active !== false) && !keys.APIFY_TOKEN.trim()) return retry("أدخل توكن Apify (مطلوب لمصادر السوشيال).");
     const per = $("#newPeriod").value, period = per === "copy" ? {} : monthRange(per === "prev" ? -1 : 0);
     const base = structuredClone(S.cfg?.settings || {});
     const cfg = { name, settings: { ...base, ...(built.settings || {}), ...period, project_name: name, daily: false },
       news: built.news || [], social: built.social || [], exclusions: built.exclusions || [],
       taxonomy: built.taxonomy || DEFAULT_TAX, extra_fields: built.extra_fields || [],
       context: built.context || ($("#newCtx").value.trim() ? $("#newCtx").value.trim().split(/\n\s*\n/) : KH_CTX.media.slice()) };
-    try { await saveProjectKeys(slug, keys); await createProject(slug, cfg); S.dirty = false; fillProjects(); await loadProject(slug); goTab("flow"); toast("أُنشئ المشروع وحُفظت مفاتيحه ✓", 4000); }
-    catch (e) { toast("تعذّر الإنشاء: " + e.message, 6000); }
+    const wait = toast("جارٍ إنشاء المشروع وحفظ المفاتيح…", 90000);
+    try { await saveProjectKeys(slug, keys); await createProject(slug, cfg); wait.remove(); S.dirty = false; fillProjects(); await loadProject(slug); goTab("flow"); toast("أُنشئ المشروع وحُفظت مفاتيحه ✓", 4000); }
+    catch (e) { wait.remove(); retry("تعذّر الإنشاء: " + e.message); }
   };
 }
-async function newProject() { $("#newCtx").value = ""; delete $("#newCtx").dataset.touched; $("#newKw").value = ""; $("#newName").value = ""; $("#newSlug").value = ""; delete $("#newSlug").dataset.touched; openWizard(); }
+async function newProject() { if (document.body.classList.contains("signedout")) { $("#connect").hidden = false; return; } $("#newCtx").value = ""; delete $("#newCtx").dataset.touched; $("#newKw").value = ""; $("#newName").value = ""; $("#newSlug").value = ""; delete $("#newSlug").dataset.touched; openWizard(); }
 
 // ── استيراد مشاريع من Make (رسالة من تبويب Make بعد موافقتك) ─────
 let pendingImport = null;
@@ -2076,7 +2139,7 @@ window.addEventListener("message", e => {
   e.source?.postMessage({ type: "monitor-import-received" }, e.origin);
   if ($("#importDlg").open) return;
   pendingImport = d.projects;
-  if (!S.token) return toast("اربط الواجهة أولاً ثم أعد الاستيراد", 6000);
+  if (!S.token || document.body.classList.contains("signedout")) return toast("اربط الواجهة أولاً ثم أعد الاستيراد", 6000);
   $("#importLead").textContent = `وصلت ${d.projects.length} مشاريع من Make. اختر ما تريد إنشاءه هنا (المفاتيح لا تُنقل؛ المحرك يستخدم Secrets).`;
   $("#importRows").replaceChildren(...d.projects.map((p, i) => el("tr", {},
     el("td", {}, el("input", { type: "checkbox", checked: !S.projects.includes(p.slug), "data-i": i })),
@@ -2120,8 +2183,8 @@ $("#project").addEventListener("change", () => { if (S.view === "home") showHome
 applyTheme(store.get("theme"));
 window.addEventListener("beforeunload", e => { if (S.dirty) { e.preventDefault(); e.returnValue = ""; } });
 $("#repo").value = S.repo;
-document.body.classList.toggle("signedout", !S.token);
-if (S.token) connect(); else { $("#connect").hidden = false; }
+document.body.classList.add("signedout");   // مقفول افتراضياً حتى ينجح الاتصال كاملاً
+if (S.token && S.repo) connect(); else { $("#connect").hidden = false; }
 </script>
 </body>
 </html>
