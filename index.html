@@ -1000,8 +1000,8 @@ function editableTable(host, title, lead, rows, cols, make, opts = {}) {
     el("div", { class: "scroll" }, el("table", {}, el("thead", {}, el("tr", {}, cols.map(c => el("th", {}, c.label)), el("th", {}, ""))), body)));
 }
 function renderNews() {
-  editableTable($("#p-news"), "استعلامات الأخبار", "صف لكل بحث. المصدر: google = Google News · bing = Bing News · newsscope = NewsScope · rss = خلاصة موقع (ضع الرابط في خانة الاستعلام) · api = مصدر التلفزيون (رابطه في الإعدادات). hl/gl لغة وبلد النتائج، وتاريخ الفترة يُضاف تلقائياً.", S.cfg.news, [
-    { key: "active", label: "مفعّل" }, { key: "source", label: "المصدر", options: ["google", "bing", "newsscope", "rss", "api"], w: 110 }, { key: "language", label: "اللغة", w: 90 }, { key: "region", label: "المنطقة", w: 100 },
+  editableTable($("#p-news"), "استعلامات الأخبار", "صف لكل بحث. المصدر: google = Google News · bing = Bing News · rss = خلاصة موقع (ضع الرابط في خانة الاستعلام) · api = مصدر التلفزيون (رابطه في الإعدادات). hl/gl لغة وبلد النتائج، وتاريخ الفترة يُضاف تلقائياً.", S.cfg.news, [
+    { key: "active", label: "مفعّل" }, { key: "source", label: "المصدر", options: ["google", "bing", "rss", "api"], w: 110 }, { key: "language", label: "اللغة", w: 90 }, { key: "region", label: "المنطقة", w: 100 },
     { key: "hl", label: "hl", mono: true, w: 60 }, { key: "gl", label: "gl", mono: true, w: 50 }, { key: "query", label: "الاستعلام", w: 280 }],
     () => ({ active: true, source: "google", language: "العربية", region: "مصر", hl: "ar", gl: "EG", query: "" }), { toggle: true, extra: kwButtons() });
 }
@@ -1353,7 +1353,7 @@ const CAUSES = [
     link: ["صفحة الفوترة والحدود في Apify", "https://console.apify.com/billing"] },
   { k: "rate_limit", t: "Google News رفض جزءاً من الطلبات", re: /rate_limit|حظر مؤقت|تعذّر الجلب مرتين|صفحة تحقق/, stages: "news",
     fix: "Google يحدّ عدد الطلبات القادمة من خوادم GitHub. المحرك الآن يبطّئ تلقائياً، ثم يُكمل ما تعذّر من Bing بنفس الكلمات. لتقليلها: احذف الاستعلامات المكررة لنفس الكلمات في دول كثيرة (اترك 3–4 دول رئيسية)، أو كبّر «أيام كل جزء» في الإعدادات. الإعادة الآن آمنة: المكرر لا يُكتب مرتين." },
-  { k: "key", t: "مفتاح ناقص في GitHub Secrets", re: /NEWSSCOPE_KEY|BROADCAST_API_KEY|APIFY_TOKEN|GEMINI_API_KEY|غير موجود/, stages: "news",
+  { k: "key", t: "مفتاح ناقص في GitHub Secrets", re: /BROADCAST_API_KEY|APIFY_TOKEN|GEMINI_API_KEY|غير موجود/, stages: "news",
     fix: "أضف المفتاح المذكور: مفتاحا Gemini وApify من «الإعداد الأول» في تبويب سير العمل (لكل مشروع)، وباقي المفاتيح من صفحة أسرار المستودع، ثم أعد التشغيل.", secrets: true },
   { k: "auth", t: "رفض الصلاحية", re: /HTTP 40[13]\b/, stages: "",
     fix: "المفتاح موجود لكنه مرفوض (منتهٍ أو بلا صلاحية). جدّده من حساب الخدمة وحدّثه في أسرار المستودع.", secrets: true },
@@ -1512,7 +1512,7 @@ async function estimateRun(cfg, slug) {
   const chunk = +st.news_chunk_days || 7;
   let newsItems = 0, newsCalls = 0;
   if (stages.has("news")) for (const q of cfg.news.filter(r => r.active !== false)) {
-    const src = q.source || "google", w = src === "google" || src === "newsscope" ? Math.ceil(span / chunk) : 1;
+    const src = q.source || "google", w = src === "google" ? Math.ceil(span / chunk) : 1;
     newsCalls += w; newsItems += w * (src === "rss" ? 20 : src === "bing" ? 25 : 35);
   }
   if (newsCalls) rows.push({ label: "الأخبار", sub: `${fmt(newsCalls)} بحث مجاني`, n: newsItems, usd: 0 });
@@ -1802,7 +1802,6 @@ function toggleTheme() {
 const SRC = {
   google:    { label: "Google News", ico: "G",  c: "#4285F4", kind: "news" },
   bing:      { label: "Bing News",   ico: "b",  c: "#00897B", kind: "news" },
-  newsscope: { label: "NewsScope",   ico: "N",  c: "#c0392b", kind: "news" },
   rss:       { label: "RSS",         ico: "◉",  c: "#F26522", kind: "news" },
   api:       { label: "تلفزيون",     ico: "📺", c: "#5E35B1", kind: "news" },
   X:         { label: "X",           ico: "𝕏",  c: "#14171A", kind: "social" },
@@ -1949,7 +1948,7 @@ Facebook | https://www.facebook.com/khateera.mena/
 https://feeds.bbci.co.uk/news/world/middle_east/rss.xml
 
 [استعلامات]
-# بحث متقدم كما هو: المصدر | لغة-بلد | الاستعلام  (المصدر: google أو bing أو newsscope)
+# بحث متقدم كما هو: المصدر | لغة-بلد | الاستعلام  (المصدر: google أو bing)
 google | ar-EG | ("خطيرة" OR "Khateera") "بودكاست"
 `;
 const SECTIONS = { "الكلمات": "kw", "كلمات": "kw", "استبعاد": "ex", "الاستبعاد": "ex", "الأسواق": "mk", "اسواق": "mk", "الهاشتاجات": "ht",
@@ -1987,7 +1986,7 @@ function buildFromKw(k, sources) {
   const has = s => sources.includes(s), news = [], social = [];
   const exQ = k.ex.map(e => `-${q1(e)}`).join(" ");
   const groups = orGroups(k.kw);
-  for (const src of ["google", "bing", "newsscope"]) if (has(src)) for (const mk of k.mk) {
+  for (const src of ["google", "bing"]) if (has(src)) for (const mk of k.mk) {
     const [hl, gl = ""] = mk.split("-"); const lang = hl.toLowerCase();
     for (const g of groups) news.push({ active: true, source: src, language: LANG[lang] || lang, region: REGION[gl.toUpperCase()] || gl, hl: src === "google" ? mk : lang, gl: gl.toUpperCase(), query: `${g} ${exQ}`.trim() });
   }
